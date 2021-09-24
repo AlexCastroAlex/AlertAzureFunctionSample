@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "AzureFunction.AlertTriggered": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "IotHubConnectionString": "your connectionstring here"
+      }
+    }
+  }
+}

@@ -1,0 +1,1618 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "IotHubs_iot_hub_monitoring_connectionString": {
+      "type": "SecureString"
+    },
+    "IotHubs_iot_hub_monitoring_containerName": {
+      "type": "SecureString"
+    },
+    "iotSecuritySolutions_iot_hub_monitoring_query": {
+      "type": "SecureString"
+    },
+    "iotSecuritySolutions_iot_hub_monitoring_querySubscriptions": {
+      "type": "Array"
+    },
+    "serverfarms_WestEuropePlan_name": {
+      "defaultValue": "WestEuropePlan",
+      "type": "String"
+    },
+    "IotHubs_iot_hub_monitoring_name": {
+      "defaultValue": "iot-hub-monitoring",
+      "type": "String"
+    },
+    "sites_AzureFunctionAlertTriggered_name": {
+      "defaultValue": "AzureFunctionAlertTriggered",
+      "type": "String"
+    },
+    "namespaces_ehns_monitoring_rg_name": {
+      "defaultValue": "ehns-monitoring-rg",
+      "type": "String"
+    },
+    "scheduledqueryrules_alert_iothub_name": {
+      "defaultValue": "alert iothub",
+      "type": "String"
+    },
+    "actionGroups_azurefunctiontriggered_name": {
+      "defaultValue": "azurefunctiontriggered",
+      "type": "String"
+    },
+    "components_AzureFunctionAlertTriggered_name": {
+      "defaultValue": "AzureFunctionAlertTriggered",
+      "type": "String"
+    },
+    "iotSecuritySolutions_iot_hub_monitoring_name": {
+      "defaultValue": "iot-hub-monitoring",
+      "type": "String"
+    },
+    "workspaces_law_monitoring_test_name": {
+      "defaultValue": "law-monitoring-test",
+      "type": "String"
+    },
+    "actionGroups_Application_Insights_Smart_Detection_name": {
+      "defaultValue": "Application Insights Smart Detection",
+      "type": "String"
+    },
+    "smartdetectoralertrules_failure_anomalies___azurefunctionalerttriggered_name": {
+      "defaultValue": "failure anomalies - azurefunctionalerttriggered",
+      "type": "String"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Devices/IotHubs",
+      "apiVersion": "2021-07-01",
+      "name": "[parameters('IotHubs_iot_hub_monitoring_name')]",
+      "location": "westeurope",
+      "sku": {
+        "name": "S1",
+        "tier": "Standard",
+        "capacity": 1
+      },
+      "identity": {
+        "type": "None"
+      },
+      "properties": {
+        "ipFilterRules": [],
+        "eventHubEndpoints": {
+          "events": {
+            "retentionTimeInDays": 1,
+            "partitionCount": 4
+          }
+        },
+        "routing": {
+          "endpoints": {
+            "serviceBusQueues": [],
+            "serviceBusTopics": [],
+            "eventHubs": [
+              {
+                "connectionString": "[concat('Endpoint=sb://ehns-monitoring-rg.servicebus.windows.net:5671/;SharedAccessKeyName=iothubroutes_', parameters('IotHubs_iot_hub_monitoring_name'), ';SharedAccessKey=****;EntityPath=monitoring_messages')]",
+                "authenticationType": "keyBased",
+                "name": "eventhubendpoint",
+                "id": "0581f759-ddda-44bb-a719-fcf4a33c8bf7",
+                "subscriptionId": "1d1c3ce2-8a53-409e-89b5-e7425c20cc26",
+                "resourceGroup": "iot_monitoring_rg"
+              }
+            ],
+            "storageContainers": []
+          },
+          "routes": [
+            {
+              "name": "routing_to_eventhub",
+              "source": "DeviceMessages",
+              "condition": "1=1",
+              "endpointNames": [
+                "eventhubendpoint"
+              ],
+              "isEnabled": true
+            }
+          ],
+          "fallbackRoute": {
+            "name": "$fallback",
+            "source": "DeviceMessages",
+            "condition": "true",
+            "endpointNames": [
+              "events"
+            ],
+            "isEnabled": true
+          }
+        },
+        "storageEndpoints": {
+          "$default": {
+            "sasTtlAsIso8601": "PT1H",
+            "connectionString": "[parameters('IotHubs_iot_hub_monitoring_connectionString')]",
+            "containerName": "[parameters('IotHubs_iot_hub_monitoring_containerName')]"
+          }
+        },
+        "messagingEndpoints": {
+          "fileNotifications": {
+            "lockDurationAsIso8601": "PT1M",
+            "ttlAsIso8601": "PT1H",
+            "maxDeliveryCount": 10
+          }
+        },
+        "enableFileUploadNotifications": false,
+        "cloudToDevice": {
+          "maxDeliveryCount": 10,
+          "defaultTtlAsIso8601": "PT1H",
+          "feedback": {
+            "lockDurationAsIso8601": "PT1M",
+            "ttlAsIso8601": "PT1H",
+            "maxDeliveryCount": 10
+          }
+        },
+        "features": "None",
+        "allowedFqdnList": []
+      }
+    },
+    {
+      "type": "Microsoft.EventHub/namespaces",
+      "apiVersion": "2021-06-01-preview",
+      "name": "[parameters('namespaces_ehns_monitoring_rg_name')]",
+      "location": "West Europe",
+      "sku": {
+        "name": "Standard",
+        "tier": "Standard",
+        "capacity": 1
+      },
+      "properties": {
+        "disableLocalAuth": false,
+        "zoneRedundant": true,
+        "isAutoInflateEnabled": false,
+        "maximumThroughputUnits": 0,
+        "kafkaEnabled": true
+      }
+    },
+    {
+      "type": "microsoft.insights/actionGroups",
+      "apiVersion": "2019-06-01",
+      "name": "[parameters('actionGroups_Application_Insights_Smart_Detection_name')]",
+      "location": "Global",
+      "properties": {
+        "groupShortName": "SmartDetect",
+        "enabled": true,
+        "emailReceivers": [],
+        "smsReceivers": [],
+        "webhookReceivers": [],
+        "itsmReceivers": [],
+        "azureAppPushReceivers": [],
+        "automationRunbookReceivers": [],
+        "voiceReceivers": [],
+        "logicAppReceivers": [],
+        "azureFunctionReceivers": [],
+        "armRoleReceivers": [
+          {
+            "name": "Monitoring Contributor",
+            "roleId": "749f88d5-cbae-40b8-bcfc-e573ddc772fa",
+            "useCommonAlertSchema": true
+          },
+          {
+            "name": "Monitoring Reader",
+            "roleId": "43d0d8ad-25c7-4714-9337-8ba259a9fe05",
+            "useCommonAlertSchema": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "microsoft.insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[parameters('components_AzureFunctionAlertTriggered_name')]",
+      "location": "westeurope",
+      "tags": {
+        "hidden-link:/subscriptions/1d1c3ce2-8a53-409e-89b5-e7425c20cc26/resourceGroups/iot_monitoring_rg/providers/Microsoft.Web/sites/AzureFunctionAlertTriggered": "Resource"
+      },
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "Flow_Type": "Redfield",
+        "Request_Source": "AppServiceEnablementCreate",
+        "RetentionInDays": 90,
+        "IngestionMode": "ApplicationInsights",
+        "publicNetworkAccessForIngestion": "Enabled",
+        "publicNetworkAccessForQuery": "Enabled"
+      }
+    },
+    {
+      "type": "microsoft.operationalinsights/workspaces",
+      "apiVersion": "2021-06-01",
+      "name": "[parameters('workspaces_law_monitoring_test_name')]",
+      "location": "westeurope",
+      "properties": {
+        "provisioningState": "Succeeded",
+        "sku": {
+          "name": "pergb2018"
+        },
+        "retentionInDays": 30,
+        "features": {
+          "enableLogAccessUsingOnlyResourcePermissions": true
+        },
+        "workspaceCapping": {
+          "dailyQuotaGb": -1
+        },
+        "publicNetworkAccessForIngestion": "Enabled",
+        "publicNetworkAccessForQuery": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2021-01-15",
+      "name": "[parameters('serverfarms_WestEuropePlan_name')]",
+      "location": "West Europe",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic",
+        "size": "Y1",
+        "family": "Y",
+        "capacity": 0
+      },
+      "kind": "functionapp",
+      "properties": {
+        "perSiteScaling": false,
+        "elasticScaleEnabled": false,
+        "maximumElasticWorkerCount": 1,
+        "isSpot": false,
+        "reserved": false,
+        "isXenon": false,
+        "hyperV": false,
+        "targetWorkerCount": 0,
+        "targetWorkerSizeId": 0
+      }
+    },
+    {
+      "type": "Microsoft.EventHub/namespaces/AuthorizationRules",
+      "apiVersion": "2021-06-01-preview",
+      "name": "[concat(parameters('namespaces_ehns_monitoring_rg_name'), '/RootManageSharedAccessKey')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.EventHub/namespaces', parameters('namespaces_ehns_monitoring_rg_name'))]"
+      ],
+      "properties": {
+        "rights": [
+          "Listen",
+          "Manage",
+          "Send"
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.EventHub/namespaces/eventhubs",
+      "apiVersion": "2021-06-01-preview",
+      "name": "[concat(parameters('namespaces_ehns_monitoring_rg_name'), '/monitoring_messages')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.EventHub/namespaces', parameters('namespaces_ehns_monitoring_rg_name'))]"
+      ],
+      "properties": {
+        "messageRetentionInDays": 7,
+        "partitionCount": 2,
+        "status": "Active"
+      }
+    },
+    {
+      "type": "Microsoft.EventHub/namespaces/networkRuleSets",
+      "apiVersion": "2021-06-01-preview",
+      "name": "[concat(parameters('namespaces_ehns_monitoring_rg_name'), '/default')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.EventHub/namespaces', parameters('namespaces_ehns_monitoring_rg_name'))]"
+      ],
+      "properties": {
+        "defaultAction": "Deny",
+        "virtualNetworkRules": [],
+        "ipRules": []
+      }
+    },
+    {
+      "type": "microsoft.insights/actionGroups",
+      "apiVersion": "2019-06-01",
+      "name": "[parameters('actionGroups_azurefunctiontriggered_name')]",
+      "location": "Global",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "groupShortName": "azurefunctio",
+        "enabled": true,
+        "emailReceivers": [
+          {
+            "name": "email alert_-EmailAction-",
+            "emailAddress": "alexandre.castro@exakis-nelite.com",
+            "useCommonAlertSchema": true
+          }
+        ],
+        "smsReceivers": [],
+        "webhookReceivers": [],
+        "itsmReceivers": [],
+        "azureAppPushReceivers": [],
+        "automationRunbookReceivers": [],
+        "voiceReceivers": [],
+        "logicAppReceivers": [],
+        "azureFunctionReceivers": [
+          {
+            "name": "DisableDevice",
+            "functionAppResourceId": "[resourceId('Microsoft.Web/sites', parameters('sites_AzureFunctionAlertTriggered_name'))]",
+            "functionName": "DisableDevice",
+            "httpTriggerUrl": "https://azurefunctionalerttriggered.azurewebsites.net/api/disabledevice?code=2iXi8bbNPU94sFM6fObXWzWE6e2HQ8RfYpWfkR83Lk5lbhcjgrYRHA==",
+            "useCommonAlertSchema": true
+          }
+        ],
+        "armRoleReceivers": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/degradationindependencyduration')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "degradationindependencyduration",
+          "DisplayName": "Degradation in dependency duration",
+          "Description": "Smart Detection rules notify you of performance anomaly issues.",
+          "HelpUrl": "https://docs.microsoft.com/en-us/azure/application-insights/app-insights-proactive-performance-diagnostics",
+          "IsHidden": false,
+          "IsEnabledByDefault": true,
+          "IsInPreview": false,
+          "SupportsEmailNotifications": true
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/degradationinserverresponsetime')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "degradationinserverresponsetime",
+          "DisplayName": "Degradation in server response time",
+          "Description": "Smart Detection rules notify you of performance anomaly issues.",
+          "HelpUrl": "https://docs.microsoft.com/en-us/azure/application-insights/app-insights-proactive-performance-diagnostics",
+          "IsHidden": false,
+          "IsEnabledByDefault": true,
+          "IsInPreview": false,
+          "SupportsEmailNotifications": true
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/digestMailConfiguration')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "digestMailConfiguration",
+          "DisplayName": "Digest Mail Configuration",
+          "Description": "This rule describes the digest mail preferences",
+          "HelpUrl": "www.homail.com",
+          "IsHidden": true,
+          "IsEnabledByDefault": true,
+          "IsInPreview": false,
+          "SupportsEmailNotifications": true
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/extension_billingdatavolumedailyspikeextension')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "extension_billingdatavolumedailyspikeextension",
+          "DisplayName": "Abnormal rise in daily data volume (preview)",
+          "Description": "This detection rule automatically analyzes the billing data generated by your application, and can warn you about an unusual increase in your application's billing costs",
+          "HelpUrl": "https://github.com/Microsoft/ApplicationInsights-Home/tree/master/SmartDetection/billing-data-volume-daily-spike.md",
+          "IsHidden": false,
+          "IsEnabledByDefault": true,
+          "IsInPreview": true,
+          "SupportsEmailNotifications": false
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/extension_canaryextension')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "extension_canaryextension",
+          "DisplayName": "Canary extension",
+          "Description": "Canary extension",
+          "HelpUrl": "https://github.com/Microsoft/ApplicationInsights-Home/blob/master/SmartDetection/",
+          "IsHidden": true,
+          "IsEnabledByDefault": true,
+          "IsInPreview": true,
+          "SupportsEmailNotifications": false
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/extension_exceptionchangeextension')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "extension_exceptionchangeextension",
+          "DisplayName": "Abnormal rise in exception volume (preview)",
+          "Description": "This detection rule automatically analyzes the exceptions thrown in your application, and can warn you about unusual patterns in your exception telemetry.",
+          "HelpUrl": "https://github.com/Microsoft/ApplicationInsights-Home/blob/master/SmartDetection/abnormal-rise-in-exception-volume.md",
+          "IsHidden": false,
+          "IsEnabledByDefault": true,
+          "IsInPreview": true,
+          "SupportsEmailNotifications": false
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/extension_memoryleakextension')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "extension_memoryleakextension",
+          "DisplayName": "Potential memory leak detected (preview)",
+          "Description": "This detection rule automatically analyzes the memory consumption of each process in your application, and can warn you about potential memory leaks or increased memory consumption.",
+          "HelpUrl": "https://github.com/Microsoft/ApplicationInsights-Home/tree/master/SmartDetection/memory-leak.md",
+          "IsHidden": false,
+          "IsEnabledByDefault": true,
+          "IsInPreview": true,
+          "SupportsEmailNotifications": false
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/extension_securityextensionspackage')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "extension_securityextensionspackage",
+          "DisplayName": "Potential security issue detected (preview)",
+          "Description": "This detection rule automatically analyzes the telemetry generated by your application and detects potential security issues.",
+          "HelpUrl": "https://github.com/Microsoft/ApplicationInsights-Home/blob/master/SmartDetection/application-security-detection-pack.md",
+          "IsHidden": false,
+          "IsEnabledByDefault": true,
+          "IsInPreview": true,
+          "SupportsEmailNotifications": false
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/extension_traceseveritydetector')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "extension_traceseveritydetector",
+          "DisplayName": "Degradation in trace severity ratio (preview)",
+          "Description": "This detection rule automatically analyzes the trace logs emitted from your application, and can warn you about unusual patterns in the severity of your trace telemetry.",
+          "HelpUrl": "https://github.com/Microsoft/ApplicationInsights-Home/blob/master/SmartDetection/degradation-in-trace-severity-ratio.md",
+          "IsHidden": false,
+          "IsEnabledByDefault": true,
+          "IsInPreview": true,
+          "SupportsEmailNotifications": false
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/longdependencyduration')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "longdependencyduration",
+          "DisplayName": "Long dependency duration",
+          "Description": "Smart Detection rules notify you of performance anomaly issues.",
+          "HelpUrl": "https://docs.microsoft.com/en-us/azure/application-insights/app-insights-proactive-performance-diagnostics",
+          "IsHidden": false,
+          "IsEnabledByDefault": true,
+          "IsInPreview": false,
+          "SupportsEmailNotifications": true
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/migrationToAlertRulesCompleted')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "migrationToAlertRulesCompleted",
+          "DisplayName": "Migration To Alert Rules Completed",
+          "Description": "A configuration that controls the migration state of Smart Detection to Smart Alerts",
+          "HelpUrl": "https://docs.microsoft.com/en-us/azure/application-insights/app-insights-proactive-performance-diagnostics",
+          "IsHidden": true,
+          "IsEnabledByDefault": false,
+          "IsInPreview": true,
+          "SupportsEmailNotifications": false
+        },
+        "enabled": false,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/slowpageloadtime')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "slowpageloadtime",
+          "DisplayName": "Slow page load time",
+          "Description": "Smart Detection rules notify you of performance anomaly issues.",
+          "HelpUrl": "https://docs.microsoft.com/en-us/azure/application-insights/app-insights-proactive-performance-diagnostics",
+          "IsHidden": false,
+          "IsEnabledByDefault": true,
+          "IsInPreview": false,
+          "SupportsEmailNotifications": true
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/components/ProactiveDetectionConfigs",
+      "apiVersion": "2018-05-01-preview",
+      "name": "[concat(parameters('components_AzureFunctionAlertTriggered_name'), '/slowserverresponsetime')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "ruleDefinitions": {
+          "Name": "slowserverresponsetime",
+          "DisplayName": "Slow server response time",
+          "Description": "Smart Detection rules notify you of performance anomaly issues.",
+          "HelpUrl": "https://docs.microsoft.com/en-us/azure/application-insights/app-insights-proactive-performance-diagnostics",
+          "IsHidden": false,
+          "IsEnabledByDefault": true,
+          "IsInPreview": false,
+          "SupportsEmailNotifications": true
+        },
+        "enabled": true,
+        "sendEmailsToSubscriptionOwners": true,
+        "customEmails": []
+      }
+    },
+    {
+      "type": "microsoft.insights/scheduledqueryrules",
+      "apiVersion": "2021-02-01-preview",
+      "name": "[parameters('scheduledqueryrules_alert_iothub_name')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('microsoft.operationalinsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "[parameters('scheduledqueryrules_alert_iothub_name')]",
+        "severity": 3,
+        "enabled": true,
+        "evaluationFrequency": "PT5M",
+        "scopes": [
+          "[resourceId('microsoft.operationalinsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+        ],
+        "windowSize": "PT5M",
+        "criteria": {
+          "allOf": [
+            {
+              "query": "AzureDiagnostics \n | extend DeviceId = tostring(parse_json(properties_s).deviceId) , Date = todatetime(TimeGenerated) , Category = tostring(Category)\n | project DeviceId , Date ,Category\n | where (Category contains \"D2CTwinOperations\" or  Category contains \"Connections\") and  Date  > ago(7h)\n | summarize Count = count() by DeviceId\n | where  Count > 0",
+              "timeAggregation": "Count",
+              "operator": "GreaterThan",
+              "threshold": 0,
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 1,
+                "minFailingPeriodsToAlert": 1
+              }
+            }
+          ]
+        },
+        "actions": {}
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/9457b7db-826a-4c0d-915c-8a22a011d7db')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "category": "Alerts",
+        "displayName": "alert query message quota exceed",
+        "query": "AzureDiagnostics \r\n | extend DeviceId = tostring(parse_json(properties_s).deviceId) , Date = todatetime(TimeGenerated) , Category = tostring(Category)\r\n | project DeviceId , Date ,Category\r\n | where (Category contains \"D2CTwinOperations\" or  Category contains \"Connections\") and  Date  > ago(1h)\r\n | summarize Count = count() by DeviceId\r\n | where  Count > 0",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_General|AlphabeticallySortedComputers')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "All Computers with their most recent data",
+        "category": "General Exploration",
+        "query": "search not(ObjectName == \"Advisor Metrics\" or ObjectName == \"ManagedSpace\") | summarize AggregatedValue = max(TimeGenerated) by Computer | limit 500000 | sort by Computer asc\r\n// Oql: NOT(ObjectName=\"Advisor Metrics\" OR ObjectName=ManagedSpace) | measure max(TimeGenerated) by Computer | top 500000 | Sort Computer // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_General|dataPointsPerManagementGroup')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Which Management Group is generating the most data points?",
+        "category": "General Exploration",
+        "query": "search * | summarize AggregatedValue = count() by ManagementGroupName\r\n// Oql: * | Measure count() by ManagementGroupName // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_General|dataTypeDistribution')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Distribution of data Types",
+        "category": "General Exploration",
+        "query": "search * | extend Type = $table | summarize AggregatedValue = count() by Type\r\n// Oql: * | Measure count() by Type // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_General|StaleComputers')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Stale Computers (data older than 24 hours)",
+        "category": "General Exploration",
+        "query": "search not(ObjectName == \"Advisor Metrics\" or ObjectName == \"ManagedSpace\") | summarize lastdata = max(TimeGenerated) by Computer | limit 500000 | where lastdata < ago(24h)\r\n// Oql: NOT(ObjectName=\"Advisor Metrics\" OR ObjectName=ManagedSpace) | measure max(TimeGenerated) as lastdata by Computer | top 500000 | where lastdata < NOW-24HOURS // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|AllEvents')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "All Events",
+        "category": "Log Management",
+        "query": "Event | sort by TimeGenerated desc\r\n// Oql: Type=Event // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|AllSyslog')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "All Syslogs",
+        "category": "Log Management",
+        "query": "Syslog | sort by TimeGenerated desc\r\n// Oql: Type=Syslog // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|AllSyslogByFacility')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "All Syslog Records grouped by Facility",
+        "category": "Log Management",
+        "query": "Syslog | summarize AggregatedValue = count() by Facility\r\n// Oql: Type=Syslog | Measure count() by Facility // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|AllSyslogByProcessName')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "All Syslog Records grouped by ProcessName",
+        "category": "Log Management",
+        "query": "Syslog | summarize AggregatedValue = count() by ProcessName\r\n// Oql: Type=Syslog | Measure count() by ProcessName // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|AllSyslogsWithErrors')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "All Syslog Records with Errors",
+        "category": "Log Management",
+        "query": "Syslog | where SeverityLevel == \"error\" | sort by TimeGenerated desc\r\n// Oql: Type=Syslog SeverityLevel=error // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|AverageHTTPRequestTimeByClientIPAddress')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Average HTTP Request time by Client IP Address",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = avg(TimeTaken) by cIP\r\n// Oql: Type=W3CIISLog | Measure Avg(TimeTaken) by cIP // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|AverageHTTPRequestTimeHTTPMethod')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Average HTTP Request time by HTTP Method",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = avg(TimeTaken) by csMethod\r\n// Oql: Type=W3CIISLog | Measure Avg(TimeTaken) by csMethod // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|CountIISLogEntriesClientIPAddress')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of IIS Log Entries by Client IP Address",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = count() by cIP\r\n// Oql: Type=W3CIISLog | Measure count() by cIP // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|CountIISLogEntriesHTTPRequestMethod')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of IIS Log Entries by HTTP Request Method",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = count() by csMethod\r\n// Oql: Type=W3CIISLog | Measure count() by csMethod // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|CountIISLogEntriesHTTPUserAgent')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of IIS Log Entries by HTTP User Agent",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = count() by csUserAgent\r\n// Oql: Type=W3CIISLog | Measure count() by csUserAgent // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|CountOfIISLogEntriesByHostRequestedByClient')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of IIS Log Entries by Host requested by client",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = count() by csHost\r\n// Oql: Type=W3CIISLog | Measure count() by csHost // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|CountOfIISLogEntriesByURLForHost')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of IIS Log Entries by URL for the host \"www.contoso.com\" (replace with your own)",
+        "category": "Log Management",
+        "query": "search csHost == \"www.contoso.com\" | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = count() by csUriStem\r\n// Oql: Type=W3CIISLog csHost=\"www.contoso.com\" | Measure count() by csUriStem // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|CountOfIISLogEntriesByURLRequestedByClient')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of IIS Log Entries by URL requested by client (without query strings)",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = count() by csUriStem\r\n// Oql: Type=W3CIISLog | Measure count() by csUriStem // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|CountOfWarningEvents')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of Events with level \"Warning\" grouped by Event ID",
+        "category": "Log Management",
+        "query": "Event | where EventLevelName == \"warning\" | summarize AggregatedValue = count() by EventID\r\n// Oql: Type=Event EventLevelName=warning | Measure count() by EventID // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|DisplayBreakdownRespondCodes')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Shows breakdown of response codes",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = count() by scStatus\r\n// Oql: Type=W3CIISLog | Measure count() by scStatus // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|EventsByEventLog')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of Events grouped by Event Log",
+        "category": "Log Management",
+        "query": "Event | summarize AggregatedValue = count() by EventLog\r\n// Oql: Type=Event | Measure count() by EventLog // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|EventsByEventsID')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of Events grouped by Event ID",
+        "category": "Log Management",
+        "query": "Event | summarize AggregatedValue = count() by EventID\r\n// Oql: Type=Event | Measure count() by EventID // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|EventsByEventSource')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of Events grouped by Event Source",
+        "category": "Log Management",
+        "query": "Event | summarize AggregatedValue = count() by Source\r\n// Oql: Type=Event | Measure count() by Source // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|EventsInOMBetween2000to3000')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Events in the Operations Manager Event Log whose Event ID is in the range between 2000 and 3000",
+        "category": "Log Management",
+        "query": "Event | where EventLog == \"Operations Manager\" and EventID >= 2000 and EventID <= 3000 | sort by TimeGenerated desc\r\n// Oql: Type=Event EventLog=\"Operations Manager\" EventID:[2000..3000] // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|EventsWithStartedinEventID')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Count of Events containing the word \"started\" grouped by EventID",
+        "category": "Log Management",
+        "query": "search in (Event) \"started\" | summarize AggregatedValue = count() by EventID\r\n// Oql: Type=Event \"started\" | Measure count() by EventID // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|FindMaximumTimeTakenForEachPage')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Find the maximum time taken for each page",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = max(TimeTaken) by csUriStem\r\n// Oql: Type=W3CIISLog | Measure Max(TimeTaken) by csUriStem // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|IISLogEntriesForClientIP')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "IIS Log Entries for a specific client IP Address (replace with your own)",
+        "category": "Log Management",
+        "query": "search cIP == \"192.168.0.1\" | extend Type = $table | where Type == W3CIISLog | sort by TimeGenerated desc | project csUriStem, scBytes, csBytes, TimeTaken, scStatus\r\n// Oql: Type=W3CIISLog cIP=\"192.168.0.1\" | Select csUriStem,scBytes,csBytes,TimeTaken,scStatus // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|ListAllIISLogEntries')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "All IIS Log Entries",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | sort by TimeGenerated desc\r\n// Oql: Type=W3CIISLog // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|NoOfConnectionsToOMSDKService')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "How many connections to Operations Manager's SDK service by day",
+        "category": "Log Management",
+        "query": "Event | where EventID == 26328 and EventLog == \"Operations Manager\" | summarize AggregatedValue = count() by bin(TimeGenerated, 1d) | sort by TimeGenerated desc\r\n// Oql: Type=Event EventID=26328 EventLog=\"Operations Manager\" | Measure count() interval 1DAY // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|ServerRestartTime')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "When did my servers initiate restart?",
+        "category": "Log Management",
+        "query": "search in (Event) \"shutdown\" and EventLog == \"System\" and Source == \"User32\" and EventID == 1074 | sort by TimeGenerated desc | project TimeGenerated, Computer\r\n// Oql: shutdown Type=Event EventLog=System Source=User32 EventID=1074 | Select TimeGenerated,Computer // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|Show404PagesList')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Shows which pages people are getting a 404 for",
+        "category": "Log Management",
+        "query": "search scStatus == 404 | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = count() by csUriStem\r\n// Oql: Type=W3CIISLog scStatus=404 | Measure count() by csUriStem // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|ShowServersThrowingInternalServerError')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Shows servers that are throwing internal server error",
+        "category": "Log Management",
+        "query": "search scStatus == 500 | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = count() by sComputerName\r\n// Oql: Type=W3CIISLog scStatus=500 | Measure count() by sComputerName // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|TotalBytesReceivedByEachAzureRoleInstance')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Total Bytes received by each Azure Role Instance",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = sum(csBytes) by RoleInstance\r\n// Oql: Type=W3CIISLog | Measure Sum(csBytes) by RoleInstance // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|TotalBytesReceivedByEachIISComputer')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Total Bytes received by each IIS Computer",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = sum(csBytes) by Computer | limit 500000\r\n// Oql: Type=W3CIISLog | Measure Sum(csBytes) by Computer | top 500000 // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|TotalBytesRespondedToClientsByClientIPAddress')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Total Bytes responded back to clients by Client IP Address",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = sum(scBytes) by cIP\r\n// Oql: Type=W3CIISLog | Measure Sum(scBytes) by cIP // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|TotalBytesRespondedToClientsByEachIISServerIPAddress')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Total Bytes responded back to clients by each IIS ServerIP Address",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = sum(scBytes) by sIP\r\n// Oql: Type=W3CIISLog | Measure Sum(scBytes) by sIP // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|TotalBytesSentByClientIPAddress')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Total Bytes sent by Client IP Address",
+        "category": "Log Management",
+        "query": "search * | extend Type = $table | where Type == W3CIISLog | summarize AggregatedValue = sum(csBytes) by cIP\r\n// Oql: Type=W3CIISLog | Measure Sum(csBytes) by cIP // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PEF: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|WarningEvents')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "All Events with level \"Warning\"",
+        "category": "Log Management",
+        "query": "Event | where EventLevelName == \"warning\" | sort by TimeGenerated desc\r\n// Oql: Type=Event EventLevelName=warning // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|WindowsFireawallPolicySettingsChanged')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "Windows Firewall Policy settings have changed",
+        "category": "Log Management",
+        "query": "Event | where EventLog == \"Microsoft-Windows-Windows Firewall With Advanced Security/Firewall\" and EventID == 2008 | sort by TimeGenerated desc\r\n// Oql: Type=Event EventLog=\"Microsoft-Windows-Windows Firewall With Advanced Security/Firewall\" EventID=2008 // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('workspaces_law_monitoring_test_name'), '/LogManagement(', parameters('workspaces_law_monitoring_test_name'), ')_LogManagement|WindowsFireawallPolicySettingsChangedByMachines')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaces_law_monitoring_test_name'))]"
+      ],
+      "properties": {
+        "displayName": "On which machines and how many times have Windows Firewall Policy settings changed",
+        "category": "Log Management",
+        "query": "Event | where EventLog == \"Microsoft-Windows-Windows Firewall With Advanced Security/Firewall\" and EventID == 2008 | summarize AggregatedValue = count() by Computer | limit 500000\r\n// Oql: Type=Event EventLog=\"Microsoft-Windows-Windows Firewall With Advanced Security/Firewall\" EventID=2008 | measure count() by Computer | top 500000 // Args: {OQ: True; WorkspaceId: 00000000-0000-0000-0000-000000000000} // Settings: {PTT: True; SortI: True; SortF: True} // Version: 0.1.122",
+        "version": 2
+      }
+    },
+    {
+      "type": "Microsoft.Security/iotSecuritySolutions",
+      "apiVersion": "2019-08-01",
+      "name": "[parameters('iotSecuritySolutions_iot_hub_monitoring_name')]",
+      "location": "westeurope",
+      "dependsOn": [
+        "[resourceId('Microsoft.Devices/IotHubs', parameters('IotHubs_iot_hub_monitoring_name'))]"
+      ],
+      "properties": {
+        "displayName": "[parameters('iotSecuritySolutions_iot_hub_monitoring_name')]",
+        "status": "Enabled",
+        "export": [],
+        "disabledDataSources": [],
+        "additionalWorkspaces": [],
+        "iotHubs": [
+          "[resourceId('Microsoft.Devices/IotHubs', parameters('IotHubs_iot_hub_monitoring_name'))]"
+        ],
+        "userDefinedResources": {
+          "query": "[parameters('iotSecuritySolutions_iot_hub_monitoring_query')]",
+          "querySubscriptions": "[parameters('iotSecuritySolutions_iot_hub_monitoring_querySubscriptions')]"
+        },
+        "recommendationsConfiguration": [
+          {
+            "recommendationType": "IoT_ACRAuthentication",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_AgentSendsUnutilizedMessages",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_AuditdNotReceived",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_Baseline",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_EdgeHubMemOptimize",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_EdgeLoggingOptions",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_InconsistentModuleSettings",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_InstallAgent",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_IPFilter_DenyAll",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_IPFilter_PermissiveRule",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_OpenPorts",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_PermissiveFirewallPolicy",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_PermissiveInputFirewallRules",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_PermissiveOutputFirewallRules",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_PrivilegedDockerOptions",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_RecommendedIpRulesByBaseLine",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_SharedCredentials",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_VulnerableTLSCipherSuite",
+            "status": "Enabled"
+          },
+          {
+            "recommendationType": "IoT_EOL_OSversion",
+            "status": "Enabled"
+          }
+        ],
+        "unmaskedIpLoggingStatus": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-01-15",
+      "name": "[parameters('sites_AzureFunctionAlertTriggered_name')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_WestEuropePlan_name'))]"
+      ],
+      "kind": "functionapp",
+      "identity": {
+        "principalId": "e747c655-bf25-43ea-b3f7-dfdb138d4b20",
+        "tenantId": "43415a66-c6b2-4897-a660-a1f8cc820b67",
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "enabled": true,
+        "hostNameSslStates": [
+          {
+            "name": "azurefunctionalerttriggered.azurewebsites.net",
+            "sslState": "Disabled",
+            "hostType": "Standard"
+          },
+          {
+            "name": "azurefunctionalerttriggered.scm.azurewebsites.net",
+            "sslState": "Disabled",
+            "hostType": "Repository"
+          }
+        ],
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_WestEuropePlan_name'))]",
+        "reserved": false,
+        "isXenon": false,
+        "hyperV": false,
+        "siteConfig": {
+          "numberOfWorkers": 1,
+          "acrUseManagedIdentityCreds": false,
+          "alwaysOn": false,
+          "http20Enabled": false,
+          "functionAppScaleLimit": 200,
+          "minimumElasticInstanceCount": 1
+        },
+        "scmSiteAlsoStopped": false,
+        "clientAffinityEnabled": false,
+        "clientCertEnabled": false,
+        "clientCertMode": "Required",
+        "hostNamesDisabled": false,
+        "customDomainVerificationId": "33D3BF24B291B8A146E868C33E9803EDBACE711F6BE2A5E23C01ED5D400369E7",
+        "containerSize": 1536,
+        "dailyMemoryTimeQuota": 0,
+        "httpsOnly": true,
+        "redundancyMode": "None",
+        "storageAccountRequired": false,
+        "keyVaultReferenceIdentity": "SystemAssigned"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/basicPublishingCredentialsPolicies",
+      "apiVersion": "2021-01-15",
+      "name": "[concat(parameters('sites_AzureFunctionAlertTriggered_name'), '/ftp')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "allow": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/basicPublishingCredentialsPolicies",
+      "apiVersion": "2021-01-15",
+      "name": "[concat(parameters('sites_AzureFunctionAlertTriggered_name'), '/scm')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "allow": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/config",
+      "apiVersion": "2021-01-15",
+      "name": "[concat(parameters('sites_AzureFunctionAlertTriggered_name'), '/web')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "numberOfWorkers": 1,
+        "defaultDocuments": [
+          "Default.htm",
+          "Default.html",
+          "Default.asp",
+          "index.htm",
+          "index.html",
+          "iisstart.htm",
+          "default.aspx",
+          "index.php"
+        ],
+        "netFrameworkVersion": "v4.0",
+        "phpVersion": "5.6",
+        "requestTracingEnabled": false,
+        "remoteDebuggingEnabled": false,
+        "remoteDebuggingVersion": "VS2019",
+        "httpLoggingEnabled": false,
+        "acrUseManagedIdentityCreds": false,
+        "logsDirectorySizeLimit": 35,
+        "detailedErrorLoggingEnabled": false,
+        "publishingUsername": "$AzureFunctionAlertTriggered",
+        "scmType": "None",
+        "use32BitWorkerProcess": true,
+        "webSocketsEnabled": false,
+        "alwaysOn": false,
+        "managedPipelineMode": "Integrated",
+        "virtualApplications": [
+          {
+            "virtualPath": "/",
+            "physicalPath": "site\\wwwroot",
+            "preloadEnabled": false
+          }
+        ],
+        "loadBalancing": "LeastRequests",
+        "experiments": {
+          "rampUpRules": []
+        },
+        "autoHealEnabled": false,
+        "vnetRouteAllEnabled": false,
+        "vnetPrivatePortsCount": 0,
+        "localMySqlEnabled": false,
+        "managedServiceIdentityId": 31890,
+        "ipSecurityRestrictions": [
+          {
+            "ipAddress": "Any",
+            "action": "Allow",
+            "priority": 1,
+            "name": "Allow all",
+            "description": "Allow all access"
+          }
+        ],
+        "scmIpSecurityRestrictions": [
+          {
+            "ipAddress": "Any",
+            "action": "Allow",
+            "priority": 1,
+            "name": "Allow all",
+            "description": "Allow all access"
+          }
+        ],
+        "scmIpSecurityRestrictionsUseMain": false,
+        "http20Enabled": false,
+        "minTlsVersion": "1.2",
+        "scmMinTlsVersion": "1.0",
+        "ftpsState": "AllAllowed",
+        "preWarmedInstanceCount": 0,
+        "functionAppScaleLimit": 200,
+        "functionsRuntimeScaleMonitoringEnabled": false,
+        "minimumElasticInstanceCount": 1,
+        "azureStorageAccounts": {}
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/deployments",
+      "apiVersion": "2021-01-15",
+      "name": "[concat(parameters('sites_AzureFunctionAlertTriggered_name'), '/ebcc1f62626442009022f1b398c987a0')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "status": 4,
+        "author_email": "N/A",
+        "author": "N/A",
+        "deployer": "ZipDeploy",
+        "message": "Created via a push deployment",
+        "start_time": "2021-09-24T05:35:18.7392343Z",
+        "end_time": "2021-09-24T05:35:28.9452043Z",
+        "active": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/functions",
+      "apiVersion": "2021-01-15",
+      "name": "[concat(parameters('sites_AzureFunctionAlertTriggered_name'), '/DisableDevice')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "script_root_path_href": "https://azurefunctionalerttriggered.azurewebsites.net/admin/vfs/site/wwwroot/DisableDevice/",
+        "script_href": "https://azurefunctionalerttriggered.azurewebsites.net/admin/vfs/site/wwwroot/bin/AzureFunction.AlertTriggered.dll",
+        "config_href": "https://azurefunctionalerttriggered.azurewebsites.net/admin/vfs/site/wwwroot/DisableDevice/function.json",
+        "test_data_href": "https://azurefunctionalerttriggered.azurewebsites.net/admin/vfs/data/Functions/sampledata/DisableDevice.dat",
+        "href": "https://azurefunctionalerttriggered.azurewebsites.net/admin/functions/DisableDevice",
+        "config": {},
+        "invoke_url_template": "https://azurefunctionalerttriggered.azurewebsites.net/api/disabledevice",
+        "language": "DotNetAssembly",
+        "isDisabled": false
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/hostNameBindings",
+      "apiVersion": "2021-01-15",
+      "name": "[concat(parameters('sites_AzureFunctionAlertTriggered_name'), '/', parameters('sites_AzureFunctionAlertTriggered_name'), '.azurewebsites.net')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_AzureFunctionAlertTriggered_name'))]"
+      ],
+      "properties": {
+        "siteName": "AzureFunctionAlertTriggered",
+        "hostNameType": "Verified"
+      }
+    },
+    {
+      "type": "microsoft.alertsmanagement/smartdetectoralertrules",
+      "apiVersion": "2021-04-01",
+      "name": "[parameters('smartdetectoralertrules_failure_anomalies___azurefunctionalerttriggered_name')]",
+      "location": "global",
+      "dependsOn": [
+        "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]",
+        "[resourceId('microsoft.insights/actionGroups', parameters('actionGroups_Application_Insights_Smart_Detection_name'))]"
+      ],
+      "properties": {
+        "description": "Failure Anomalies notifies you of an unusual rise in the rate of failed HTTP requests or dependency calls.",
+        "state": "Enabled",
+        "severity": "Sev3",
+        "frequency": "PT1M",
+        "detector": {
+          "id": "FailureAnomaliesDetector"
+        },
+        "scope": [
+          "[resourceId('microsoft.insights/components', parameters('components_AzureFunctionAlertTriggered_name'))]"
+        ],
+        "actionGroups": {
+          "groupIds": [
+            "[resourceId('microsoft.insights/actionGroups', parameters('actionGroups_Application_Insights_Smart_Detection_name'))]"
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.EventHub/namespaces/eventhubs/authorizationRules",
+      "apiVersion": "2021-06-01-preview",
+      "name": "[concat(parameters('namespaces_ehns_monitoring_rg_name'), '/monitoring_messages/iothubroutes_iot-hub-monitoring')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.EventHub/namespaces/eventhubs', parameters('namespaces_ehns_monitoring_rg_name'), 'monitoring_messages')]",
+        "[resourceId('Microsoft.EventHub/namespaces', parameters('namespaces_ehns_monitoring_rg_name'))]"
+      ],
+      "properties": {
+        "rights": [
+          "Send"
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.EventHub/namespaces/eventhubs/consumergroups",
+      "apiVersion": "2021-06-01-preview",
+      "name": "[concat(parameters('namespaces_ehns_monitoring_rg_name'), '/monitoring_messages/$Default')]",
+      "location": "West Europe",
+      "dependsOn": [
+        "[resourceId('Microsoft.EventHub/namespaces/eventhubs', parameters('namespaces_ehns_monitoring_rg_name'), 'monitoring_messages')]",
+        "[resourceId('Microsoft.EventHub/namespaces', parameters('namespaces_ehns_monitoring_rg_name'))]"
+      ],
+      "properties": {}
+    }
+  ]
+}
